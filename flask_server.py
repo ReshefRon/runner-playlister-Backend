@@ -7,20 +7,22 @@ import spotify_fetcher
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app, resources={
-    r"/*": {
-        "origins": ["https://accounts.spotify.com","https://spotify.com"],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
-    }
-})
-
 load_dotenv()
 
 client_id = os.getenv('SPOTIFY_CLIENT_ID')
 client_secret = os.getenv('SPOTIFY_CLIENT_SECRET')
 redirect_uri = os.getenv('SPOTIFY_REDIRECT_URI')
 FRONTEND_URL = os.getenv('URL')
+
+CORS(app, resources={
+    r"/*": {
+        "origins": ["https://accounts.spotify.com","https://spotify.com",FRONTEND_URL],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
+
+
 
 sp_oauth = SpotifyOAuth(
     client_id,
@@ -120,7 +122,6 @@ def generate_playlist():
 
     # Check if user already exists
     if db_functions.isUserExists((userId,))[0]:
-        print("im updating")
         # Update userInfo
         userParametersForUpdate = (gender, age, weight, height, distance, duration, userId)
         db_functions.updateUserinfo(userParametersForUpdate)
