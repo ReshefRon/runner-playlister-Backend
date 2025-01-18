@@ -170,9 +170,10 @@ def remove_playlist():
     return jsonify({"message": "Playlist removed!"}), 200
 
 
-@app.route('/get_playlists_tracks', methods=['GET', 'POST'])
+@app.route('/get_playlists_tracks', methods=['POST'])
 def get_playlist_tracks():
-    playlist_id = request.args.get('playlist_id')
+    data = request.json
+    playlist_id = data.get('playlist_id')
     tracks_data = db_functions.selectTracks((playlist_id,))
     return jsonify(({"tracks": tracks_data}))
 
