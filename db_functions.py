@@ -88,8 +88,8 @@ def insertTracks(params):
     conn, c = get_db_connection()
 
     c.execute('''
-    INSERT INTO TRACKS (name, artist, duration, playlist_id)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO TRACKS (name, artist, duration, spotify_track_id, playlist_id)
+    VALUES (?, ?, ?, ?, ?)
     ''', params)
 
     conn.commit()
@@ -179,7 +179,7 @@ def selectTracks(params):
     conn, c = get_db_connection()
 
     c.execute('''
-    SELECT id, name, artist, duration FROM TRACKS 
+    SELECT id, name, artist, duration, spotify_track_id FROM TRACKS 
     WHERE playlist_id = ?
     ORDER BY name
     ''', params)

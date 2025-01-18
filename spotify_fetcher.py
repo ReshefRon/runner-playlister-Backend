@@ -4,7 +4,7 @@ import random
 search_url = "https://api.spotify.com/v1/search"
 tracks = []
 total_tracks_duration = 0
-AMOUNT = 0
+
 
 def getUsername(headers):
     query_url = "https://api.spotify.com/v1/me"
@@ -19,24 +19,13 @@ def getUsername(headers):
 
 def createPlaylist(headers, bpm, duration):
     global total_tracks_duration
-    global AMOUNT
-
-    if duration < 600:
-        AMOUNT = 1
-    elif duration < 1200:
-        AMOUNT = 2
-    elif duration < 1800:
-        AMOUNT = 3
-    elif duration < 2400:
-        AMOUNT = 4
-    else:
-        AMOUNT = 5
 
     addUserTopTracks(headers)
     addTopHitsTracks(headers)
+    print(tracks)
     addBpmTracks(headers, bpm, duration - total_tracks_duration)
 
-    return total_tracks_duration,tracks
+    return total_tracks_duration, tracks
 
 
 
@@ -44,9 +33,8 @@ def createPlaylist(headers, bpm, duration):
 
 def addUserTopTracks(headers):
     global total_tracks_duration
-    global AMOUNT
 
-    query_url = f"https://api.spotify.com/v1/me/top/tracks?limit={AMOUNT}"
+    query_url = f"https://api.spotify.com/v1/me/top/tracks?limit=1"
     result = get(query_url, headers=headers)
     try:
         json_result_UserTopTracks=result.json()["items"]
@@ -54,7 +42,8 @@ def addUserTopTracks(headers):
             tracks.append({
                 "name": track["name"],
                 "artist": track["artists"][0]["name"],
-                "duration": round(int(track["duration_ms"]) / 1000)
+                "duration": round(int(track["duration_ms"]) / 1000),
+                "spotify_track_id": track["id"]
             })
             total_tracks_duration += round(int(track["duration_ms"]) / 1000)
     except Exception as e:
@@ -65,17 +54,17 @@ def addUserTopTracks(headers):
 
 def addTopHitsTracks(headers):
     global total_tracks_duration
-    global AMOUNT
 
     query_url = "https://api.spotify.com/v1/playlists/3Oh3oSaZjfsXcNwSpVMye2/tracks"
     result = get(query_url, headers=headers)
     try:
-        json_result_topHits = result.json()["items"]
-        for item in json_result_topHits[:AMOUNT]:
+        json_result_topHits = result.json()["items"]["track"]
+        for item in json_result_topHits[:2]:
             tracks.append({
                 "name": item["track"]["name"],
                 "artist": item["track"]["artists"][0]["name"],
-                "duration": round(int(item["track"]["duration_ms"]) / 1000)
+                "duration": round(int(item["track"]["duration_ms"]) / 1000),
+                "spotify_track_id": item["track"]["id"]
             })
             total_tracks_duration += round(int(item["track"]["duration_ms"]) / 1000)
 
@@ -83,13 +72,18 @@ def addTopHitsTracks(headers):
         print(e)
 
 
-def addBpmTracks(headers, bpm, duration):
+def addBpmTracks(headers, bpm, remaining_duration):
     global total_tracks_duration
+    global tracks
+
 
     playlist_ids = []
-    query = f"?q=%22running%20{bpm}%20bpm%22&type=playlist&limit=10"
+    query = f"?q=%22running%20{bpm}%20bpm%22&type=playlist&limit=20"  # Increased to 20
     query_url = search_url + query
     result = get(query_url, headers=headers)
+
+    added_songs = {(track["name"], track["artist"]) for track in tracks}
+
     try:
         json_result_playlists = result.json()["playlists"]["items"]
         for item in json_result_playlists:
@@ -98,32 +92,55 @@ def addBpmTracks(headers, bpm, duration):
                 if ("running" in playlistName) and ("bpm" in playlistName) and (str(bpm) in playlistName):
                     playlist_ids.append(item["id"])
     except Exception as e:
-        print(e)
+        print(f"Error finding playlists: {e}")
+        return False
 
-    bpm_temp_list = []
-    for id in playlist_ids:
-        query_url = f"https://api.spotify.com/v1/playlists/{id}/tracks"
-        result = get(query_url, headers=headers)
+    all_available_tracks = []
+
+    # Collect all tracks first
+    for playlist_id in playlist_ids:
+        query_url = f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks"
         try:
+            result = get(query_url, headers=headers)
             json_result_playlistTracks = result.json()["items"]
+
             for item in json_result_playlistTracks:
-                bpm_temp_list.append({
-                    "name": item["track"]["name"],
-                    "artist": item["track"]["artists"][0]["name"],
-                    "duration": round(int(item["track"]["duration_ms"])/1000)
-                })
-                #popularity = item["track"]["popularity"]    //OPTIONAL: for future features
+                if (item["track"] is not None and
+                        item["track"]["name"] and
+                        item["track"]["artists"] and
+                        item["track"]["duration_ms"]):
+
+                    name = item["track"]["name"].strip()
+                    artist = item["track"]["artists"][0]["name"].strip()
+
+                    if not name or not artist:
+                        continue
+
+                    if (name, artist) not in added_songs:
+                        track_data = {
+                            "name": name,
+                            "artist": artist,
+                            "duration": round(int(item["track"]["duration_ms"]) / 1000),
+                            "spotify_track_id": item["track"]["id"]
+                        }
+                        all_available_tracks.append(track_data)
+                        added_songs.add((name, artist))
+
         except Exception as e:
-            print(e)
+            print(f"Error getting tracks from playlist {playlist_id}: {e}")
+            continue
 
-    total_duration = 0
-    while total_duration < duration:
-        track = random.choice(bpm_temp_list)
-        total_duration += track["duration"]
-        total_tracks_duration +=  track["duration"]
+    # Shuffle all available tracks
+    random.shuffle(all_available_tracks)
+
+    # Keep adding tracks until we exceed the duration
+    current_duration = 0
+    while current_duration < remaining_duration and all_available_tracks:
+        track = all_available_tracks.pop()
         tracks.append(track)
-
-
+        current_duration += track["duration"]
+        total_tracks_duration += track["duration"]
+    return True
 
 def addFavArtistsTracks(headers, favArtists):
     global total_tracks_duration
@@ -155,7 +172,34 @@ def addFavArtistsTracks(headers, favArtists):
             print(f"Could not fetch top tracks for artist ID {artist_id}: {e}")
             continue
 
+def create_spotify_playlist(headers, playlist_name, tracks):
+    # Get user profile
+    query_url = "https://api.spotify.com/v1/me"
+    result = get(query_url, headers=headers)
+    user_id = result.json()["id"]
 
+    # Create empty playlist
+    create_url = f"https://api.spotify.com/v1/users/{user_id}/playlists"
+    playlist_data = {
+        "name": playlist_name,
+        "description": "Created by RunnerPlaylister",
+        "public": True
+    }
+    result = post(create_url, headers=headers, json=playlist_data)
+    playlist_id = result.json()["id"]
+
+    # Use stored track IDs directly
+    track_uris = [f"spotify:track:{track[4]}" for track in tracks if
+                  track[4]]  # Assuming track[4] is spotify_track_id
+
+    # Add tracks to playlist in batches of 100
+    if track_uris:
+        add_url = f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks"
+        for i in range(0, len(track_uris), 100):
+            batch = track_uris[i:i + 100]
+            post(add_url, headers=headers, json={"uris": batch})
+
+    return playlist_id
 
 
 

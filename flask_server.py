@@ -147,12 +147,19 @@ def generate_playlist():
     db_functions.insertPlaylist(playlistParametersForInsert)
 
     # Get Playlist Id
-    plsylistId = db_functions.selectLastPlaylist((userId,))
+    playlistId = db_functions.selectLastPlaylist((userId,))
 
     # Add tracks to Db
     for track in tracksList:
-        tracksParametersForInsert = (track['name'], track['artist'], track['duration'], plsylistId)
-        db_functions.insertTracks(tracksParametersForInsert)
+        if track.get('name') and track.get('artist') and track.get('duration'):  # Verify all required fields exist
+            tracksParametersForInsert = (
+                track['name'],
+                track['artist'],
+                track['duration'],
+                track['spotify_track_id'],
+                playlistId
+            )
+            db_functions.insertTracks(tracksParametersForInsert)
 
     return jsonify({"message": "Playlist generation started!"}), 200
 
@@ -185,6 +192,27 @@ def remove_track():
 
     db_functions.removeTrack((track_id, playlist_id))
     return jsonify({"message": "Track removed!"}), 200
+
+
+@app.route('/create_spotify_playlist', methods=['POST'])
+def create_spotify_playlist():
+    global token_info, headers
+    if not token_info or 'access_token' not in token_info:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json
+    playlist_id = data.get('playlist_id')
+    playlist_name = data.get('name')
+
+    # Get tracks from database
+    tracks = db_functions.selectTracks((playlist_id,))
+    print(tracks)
+
+    try:
+        spotify_playlist_id = spotify_fetcher.create_spotify_playlist(headers, playlist_name, tracks)
+        return jsonify({"message": "Playlist created successfully!", "spotify_playlist_id": spotify_playlist_id}), 200
+    except Exception as e:
+        print(f"Error creating Spotify playlist: {e}")
 
 
 if __name__ == "__main__":

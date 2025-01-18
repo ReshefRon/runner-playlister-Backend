@@ -38,6 +38,7 @@ CREATE TABLE TRACKS (
     name TEXT NOT NULL,
     artist TEXT NOT NULL,
     duration INTEGER,
+    spotify_track_id TEXT,
     playlist_id INTEGER,
     FOREIGN KEY (playlist_id) REFERENCES PLAYLISTS(id)
 )
