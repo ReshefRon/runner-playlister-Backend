@@ -127,7 +127,7 @@ def generate_playlist():
         db_functions.updateUserinfo(userParametersForUpdate)
     else:
         # Insert to userInfo
-        userParametersForInsert = (userId, gender, age, weight, height, distance, duration)
+        userParametersForInsert = (userId, gender, age, weight, height, distance, duration + 300)
         db_functions.insertUserinfo(userParametersForInsert)
     # Insert to playlists
     counter = 2
