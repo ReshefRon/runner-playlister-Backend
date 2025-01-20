@@ -22,7 +22,6 @@ def createPlaylist(headers, bpm, duration):
 
     addUserTopTracks(headers)
     addTopHitsTracks(headers)
-    print(tracks)
     addBpmTracks(headers, bpm, duration - total_tracks_duration)
 
     return total_tracks_duration, tracks
@@ -58,7 +57,7 @@ def addTopHitsTracks(headers):
     query_url = "https://api.spotify.com/v1/playlists/3Oh3oSaZjfsXcNwSpVMye2/tracks"
     result = get(query_url, headers=headers)
     try:
-        json_result_topHits = result.json()["items"]["track"]
+        json_result_topHits = result.json()["items"]
         for item in json_result_topHits[:2]:
             tracks.append({
                 "name": item["track"]["name"],

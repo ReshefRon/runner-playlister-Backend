@@ -139,7 +139,6 @@ def generate_playlist():
         while db_functions.isPlaylistExists((newplaylistName,))[0]:
             counter += 1
             newplaylistName = f"{playlistName}({counter})"
-            print(newplaylistName)
         playlistName = newplaylistName
 
     playlist_duration, tracksList = spotify_fetcher.createPlaylist(headers, int(pace), duration)
@@ -206,7 +205,7 @@ def create_spotify_playlist():
 
     # Get tracks from database
     tracks = db_functions.selectTracks((playlist_id,))
-    print(tracks)
+
 
     try:
         spotify_playlist_id = spotify_fetcher.create_spotify_playlist(headers, playlist_name, tracks)
